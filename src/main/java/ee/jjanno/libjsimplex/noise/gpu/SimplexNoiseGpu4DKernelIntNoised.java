@@ -1,6 +1,6 @@
 package ee.jjanno.libjsimplex.noise.gpu;
 
-import com.amd.aparapi.Kernel;
+import com.aparapi.Kernel;
 
 /*
  * A speed-improved simplex noise algorithm for 2D, 3D and 4D in Java.
@@ -21,24 +21,54 @@ import com.amd.aparapi.Kernel;
  *
  */
 
-class SimplexNoiseGpu4DKernelIntNoisedOctaved extends Kernel {
+class SimplexNoiseGpu4DKernelIntNoised extends Kernel {
 
 	private float[] argsFloat = { 0, 0, 0, 0, 0 };
-	private int[] argsInt = { 1, 1, 1, 1, 1 };
-	private float[] argsWeight = { 1 };
+	private int[] argsInt = { 1, 1, 1, 1 };
 
 	private float[] r = new float[1];
+	
+	@Override
+	public void run() {
+		int i = getGlobalId();
+		int x = i % argsInt[0];
+		int y = (i % (argsInt[0] * argsInt[1] * argsInt[2]) % (argsInt[0] * argsInt[1]))
+				/ (argsInt[1]);
+		int z = i / (argsInt[0] * argsInt[1]) % argsInt[2];
+		int w = i / (argsInt[0] * argsInt[1] * argsInt[2]);
+		r[i] = noise(argsFloat[0] + argsFloat[4] * x, argsFloat[1]
+				+ argsFloat[4] * y, argsFloat[2] + argsFloat[4] * z,
+				argsFloat[3] + argsFloat[4] * w);
+	}
+
+	public float[] getResult() {
+		return r;
+	}
+
+	public void setParameters(float x, float y, float z, float w, int width,
+			int height, int depth, int depth4, float frequency) {
+		argsFloat[0] = x;
+		argsFloat[1] = y;
+		argsFloat[2] = z;
+		argsFloat[3] = w;
+		argsInt[0] = width;
+		argsInt[1] = height;
+		argsInt[2] = depth;
+		argsInt[3] = depth4;
+		argsFloat[4] = frequency;
+		r = new float[width * height * depth * depth4];
+	}
 
 	private int intNoise(int n) {
 		n = ((n + 463856334) >> 13) ^ (n + 575656768);
 		return ((n * (n * n * 60493 + 19990303) + 1376312589) & 0x7fffffff & 255);
 	}
 
-	private short permMod32[] = new short[512];
+	private short permMod12[] = new short[512];
 
-	public SimplexNoiseGpu4DKernelIntNoisedOctaved() {
+	public SimplexNoiseGpu4DKernelIntNoised() {
 		for (int i = 0; i < 512; i++) {
-			permMod32[i] = (short) (perm[i] % 32);
+			permMod12[i] = (short) (perm[i] % 12);
 		}
 	}
 
@@ -52,7 +82,7 @@ class SimplexNoiseGpu4DKernelIntNoisedOctaved extends Kernel {
 		return gx * x + gy * y + gz * z + gw * w;
 	}
 
-	public float noise(float x, float y, float z, float w, int iteration) {
+	public float noise(float x, float y, float z, float w) {
 
 		float n0 = 0f, n1 = 0f, n2 = 0f, n3 = 0f, n4 = 0f;
 		float s = (x + y + z + w) * 0.30901699437494745f;
@@ -141,15 +171,15 @@ class SimplexNoiseGpu4DKernelIntNoisedOctaved extends Kernel {
 		int jj = j & 255;
 		int kk = k & 255;
 		int ll = l & 255;
-		int gi0 = permMod32[ii + intNoise(jj + intNoise(kk + intNoise(ll)))];
-		int gi1 = permMod32[ii + i1
-				+ intNoise(jj + j1 + intNoise(kk + k1 + intNoise(ll + l1)))];
-		int gi2 = permMod32[ii + i2
-				+ intNoise(jj + j2 + intNoise(kk + k2 + intNoise(ll + l2)))];
-		int gi3 = permMod32[ii + i3
-				+ intNoise(jj + j3 + intNoise(kk + k3 + intNoise(ll + l3)))];
-		int gi4 = permMod32[ii + 1
-				+ intNoise(jj + 1 + intNoise(kk + 1 + intNoise(ll + 1)))];
+		int gi0 = intNoise(ii + intNoise(jj + intNoise(kk + intNoise(ll)))) % 32;
+		int gi1 = intNoise(ii + i1
+				+ intNoise(jj + j1 + intNoise(kk + k1 + intNoise(ll + l1)))) % 32;
+		int gi2 = intNoise(ii + i2
+				+ intNoise(jj + j2 + intNoise(kk + k2 + intNoise(ll + l2)))) % 32;
+		int gi3 = intNoise(ii + i3
+				+ intNoise(jj + j3 + intNoise(kk + k3 + intNoise(ll + l3)))) % 32;
+		int gi4 = intNoise(ii + 1
+				+ intNoise(jj + 1 + intNoise(kk + 1 + intNoise(ll + 1)))) % 32;
 
 		float t0 = 0.6f - x0 * x0 - y0 * y0 - z0 * z0 - w0 * w0;
 		if (t0 < 0)
@@ -206,44 +236,7 @@ class SimplexNoiseGpu4DKernelIntNoisedOctaved extends Kernel {
 							grad4[gi4 * 4 + 2], grad4[gi4 * 4 + 3], x4, y4, z4,
 							w4);
 		}
-		return 27.0f * (n0 + n1 + n2 + n3 + n4) * argsWeight[iteration];
-	}
-
-	@Override
-	public void run() {
-		int i = getGlobalId();
-		int x = i % argsInt[0];
-		int y = (i % (argsInt[0] * argsInt[1] * argsInt[2]) % (argsInt[0] * argsInt[1]))
-				/ (argsInt[1]);
-		int z = i / (argsInt[0] * argsInt[1]) % argsInt[2];
-		int w = i / (argsInt[0] * argsInt[1] * argsInt[2]);
-
-		float accumulator = 0;
-
-		for (int j = 0; j < argsInt[4]; j++) {
-			float power = pow(2, j);
-			float newFrequency = argsFloat[4] * power;
-
-			accumulator += noise(argsFloat[0] * power + newFrequency * x,
-					argsFloat[1] * power + newFrequency * y, argsFloat[2]
-							* power + newFrequency * z, argsFloat[3] * power
-							+ newFrequency * w, j);
-		}
-
-		r[i] = accumulator;
-
-	}
-
-	public float[] getResult() {
-		return r;
-	}
-
-	public void setParameters(float x, float y, float z, float w, int width,
-			int height, int depth, int depth4, float frequency, float[] weight) {
-		argsWeight = weight;
-		argsFloat = new float[] { x, y, z, w, frequency };
-		argsInt = new int[] { width, height, depth, depth4, weight.length };
-		r = new float[width * height * depth * depth4];
+		return 27.0f * (n0 + n1 + n2 + n3 + n4);
 	}
 
 	private int grad4[] = { 0, 1, 1, 1, 0, 1, 1, -1, 0, 1, -1, 1, 0, 1, -1, -1,

@@ -1,6 +1,6 @@
 package ee.jjanno.libjsimplex.noise.gpu;
 
-import com.amd.aparapi.Kernel;
+import com.aparapi.Kernel;
 
 /*
  * A speed-improved simplex noise algorithm for 2D, 3D and 4D in Java.
@@ -21,7 +21,7 @@ import com.amd.aparapi.Kernel;
  *
  */
 
-class SimplexNoiseGpu4DKernelTiled extends Kernel {
+class SimplexNoiseGpu4DKernelIntNoisedOctaved extends Kernel {
 
 	private float[] argsFloat = { 0, 0, 0, 0, 0 };
 	private int[] argsInt = { 1, 1, 1, 1, 1 };
@@ -36,7 +36,7 @@ class SimplexNoiseGpu4DKernelTiled extends Kernel {
 
 	private short permMod32[] = new short[512];
 
-	public SimplexNoiseGpu4DKernelTiled() {
+	public SimplexNoiseGpu4DKernelIntNoisedOctaved() {
 		for (int i = 0; i < 512; i++) {
 			permMod32[i] = (short) (perm[i] % 32);
 		}
@@ -50,50 +50,6 @@ class SimplexNoiseGpu4DKernelTiled extends Kernel {
 	private float dot(float gx, float gy, float gz, float gw, float x, float y,
 			float z, float w) {
 		return gx * x + gy * y + gz * z + gw * w;
-	}
-
-	private float octaveDiv(int octave, float frequency) {
-		return pow(2, octave) / frequency;
-	}
-
-	@Override
-	public void run() {
-		int i = getGlobalId();
-
-		int xSlices = argsInt[3];
-		int ySlices = argsInt[4];
-
-		float accumulator = 0;
-
-		for (int j = 0; j < argsInt[2]; j++) {
-			float octaveDivisor = octaveDiv(j, argsFloat[2]) / xSlices;
-			
-			float x = sin(((argsFloat[1] + i / argsInt[0]) / xSlices) * 2 * 3.14159265358979323846f)
-					* octaveDivisor;
-			float y = cos(((argsFloat[1] + i / argsInt[0]) / xSlices) * 2 * 3.14159265358979323846f)
-					* octaveDivisor;
-			float z = sin(((argsFloat[0] + i % argsInt[0]) / ySlices) * 2 * 3.14159265358979323846f)
-					* octaveDivisor;
-			float w = cos(((argsFloat[0] + i % argsInt[0]) / ySlices) * 2 * 3.14159265358979323846f)
-					* octaveDivisor;
-
-			accumulator += noise(x, y, z, w, j);
-		}
-
-		r[i] = accumulator;
-
-	}
-
-	public float[] getResult() {
-		return r;
-	}
-
-	public void setParameters(float x, float y, int width, int height, int xSlices, int ySlices,
-			float frequency, float[] weight) {
-		argsWeight = weight;
-		argsFloat = new float[] { x, y, frequency };
-		argsInt = new int[] { width, height, weight.length, xSlices, ySlices };
-		r = new float[width * height];
 	}
 
 	public float noise(float x, float y, float z, float w, int iteration) {
@@ -251,6 +207,43 @@ class SimplexNoiseGpu4DKernelTiled extends Kernel {
 							w4);
 		}
 		return 27.0f * (n0 + n1 + n2 + n3 + n4) * argsWeight[iteration];
+	}
+
+	@Override
+	public void run() {
+		int i = getGlobalId();
+		int x = i % argsInt[0];
+		int y = (i % (argsInt[0] * argsInt[1] * argsInt[2]) % (argsInt[0] * argsInt[1]))
+				/ (argsInt[1]);
+		int z = i / (argsInt[0] * argsInt[1]) % argsInt[2];
+		int w = i / (argsInt[0] * argsInt[1] * argsInt[2]);
+
+		float accumulator = 0;
+
+		for (int j = 0; j < argsInt[4]; j++) {
+			float power = pow(2, j);
+			float newFrequency = argsFloat[4] * power;
+
+			accumulator += noise(argsFloat[0] * power + newFrequency * x,
+					argsFloat[1] * power + newFrequency * y, argsFloat[2]
+							* power + newFrequency * z, argsFloat[3] * power
+							+ newFrequency * w, j);
+		}
+
+		r[i] = accumulator;
+
+	}
+
+	public float[] getResult() {
+		return r;
+	}
+
+	public void setParameters(float x, float y, float z, float w, int width,
+			int height, int depth, int depth4, float frequency, float[] weight) {
+		argsWeight = weight;
+		argsFloat = new float[] { x, y, z, w, frequency };
+		argsInt = new int[] { width, height, depth, depth4, weight.length };
+		r = new float[width * height * depth * depth4];
 	}
 
 	private int grad4[] = { 0, 1, 1, 1, 0, 1, 1, -1, 0, 1, -1, 1, 0, 1, -1, -1,
