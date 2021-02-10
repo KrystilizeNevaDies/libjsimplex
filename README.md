@@ -19,7 +19,7 @@ repositories {
   maven { url 'https://jitpack.io' }
 }
 dependencies {
-  implementation 'com.github.KrystilizeNevaDies:libjsimplex:135516348d'
+  implementation 'com.github.KrystilizeNevaDies:libjsimplex:ec1d0db23e'
 }
 ```
 
@@ -37,9 +37,9 @@ Maven:
 <dependency>
   <groupId>com.github.KrystilizeNevaDies</groupId>
   <artifactId>libjsimplex</artifactId>
-  <version>135516348d</version>
+  <version>ec1d0db23e</version>
 </dependency>
 ```
 
 
-Refer to https://jitpack.io/#KrystilizeNevaDies/libjsimplex/135516348d for any issues
+Refer to https://jitpack.io/#KrystilizeNevaDies/libjsimplex/ec1d0db23e for any issues
