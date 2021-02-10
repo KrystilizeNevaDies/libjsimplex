@@ -1,0 +1,17 @@
+plugins {
+    // Apply the java-library plugin to add support for Java Library
+    id 'java-library'
+}
+
+repositories {
+    // Use jcenter for resolving dependencies.
+    jcenter()
+    
+    // Use jitpack for compiling dependencies.
+    maven { url 'https://jitpack.io' }
+}
+
+dependencies {
+    // Aparapi
+    implementation 'com.aparapi:aparapi:2.0.0'
+}
