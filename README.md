@@ -25,9 +25,21 @@ dependencies {
 
 Maven:
 ```
-  <dependency>
-	  <groupId>com.github.KrystilizeNevaDies</groupId>
-	  <artifactId>libjsimplex</artifactId>
-	  <version>135516348d</version>
-	</dependency>
+// Repo
+<repositories>
+  <repository>
+    <id>jitpack.io</id>
+    <url>https://jitpack.io</url>
+  </repository>
+</repositories>
+
+// Add dependency
+<dependency>
+  <groupId>com.github.KrystilizeNevaDies</groupId>
+  <artifactId>libjsimplex</artifactId>
+  <version>135516348d</version>
+</dependency>
 ```
+
+
+Refer to https://jitpack.io/#KrystilizeNevaDies/libjsimplex/135516348d for any issues
